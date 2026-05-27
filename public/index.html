@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Менеджер завдань</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --surface: #ffffff;
+        --surface2: #f8fafc;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #dc2626;
+        --radius: 12px;
+        --shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at 20% 10%, #1e40af 0%, #0f172a 42%, #020617 100%);
+        color: var(--text);
+        overflow-x: hidden;
+      }
+      .water-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .water-bg::before {
+        content: "";
+        position: absolute;
+        inset: -20%;
+        background:
+          radial-gradient(circle at 20% 25%, rgba(56, 189, 248, 0.28) 0%, transparent 38%),
+          radial-gradient(circle at 78% 30%, rgba(34, 197, 94, 0.16) 0%, transparent 35%),
+          radial-gradient(circle at 60% 78%, rgba(59, 130, 246, 0.24) 0%, transparent 42%);
+        animation: waterPulse 16s ease-in-out infinite alternate;
+      }
+      .water-bg::after {
+        content: "";
+        position: absolute;
+        inset: -35%;
+        background:
+          repeating-radial-gradient(
+            circle at center,
+            rgba(148, 197, 255, 0.08) 0px,
+            rgba(148, 197, 255, 0.08) 2px,
+            rgba(148, 197, 255, 0) 16px,
+            rgba(148, 197, 255, 0) 28px
+          );
+        mix-blend-mode: screen;
+        opacity: 0.55;
+        animation: waterRipples 22s linear infinite;
+      }
+      .water-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(0.5px);
+        opacity: 0.58;
+        background: radial-gradient(circle at 28% 30%, rgba(255, 255, 255, 0.82), rgba(125, 211, 252, 0.2) 42%, rgba(56, 189, 248, 0.04) 70%);
+        box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.25), 0 0 34px rgba(56, 189, 248, 0.23);
+        animation: floatOrb 17s ease-in-out infinite;
+        transform: translate3d(var(--tx, 0), var(--ty, 0), 0);
+        transition: transform 0.8s ease-out;
+      }
+      .water-orb.orb-1 {
+        width: 280px;
+        height: 280px;
+        left: -70px;
+        top: 8%;
+        animation-delay: -3s;
+      }
+      .water-orb.orb-2 {
+        width: 220px;
+        height: 220px;
+        right: 9%;
+        top: 18%;
+        animation-delay: -8s;
+      }
+      .water-orb.orb-3 {
+        width: 340px;
+        height: 340px;
+        right: -100px;
+        bottom: -80px;
+        animation-delay: -12s;
+      }
+      a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 24px;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(18px) saturate(125%);
+        border-bottom: 1px solid rgba(191, 219, 254, 0.25);
+        color: #f8fafc;
+        position: relative;
+        z-index: 2;
+      }
+      .brand {
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .topbar-actions span {
+        color: #cbd5e1;
+        font-size: 0.9rem;
+      }
+      .topbar-actions a {
+        color: #93c5fd;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      .btn-ghost:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .shell {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 28px 20px 48px;
+        position: relative;
+        z-index: 2;
+      }
+      .view {
+        display: none;
+      }
+      .view.is-active {
+        display: block;
+        animation: fadeIn 0.22s ease;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .auth-panel {
+        max-width: 420px;
+        margin: 40px auto;
+        background: rgba(248, 250, 252, 0.72);
+        border-radius: var(--radius);
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+        border: 1px solid rgba(191, 219, 254, 0.52);
+        backdrop-filter: blur(14px) saturate(125%);
+        padding: 32px 28px;
+      }
+      .auth-panel h1 {
+        margin: 0 0 8px;
+        font-size: 1.5rem;
+      }
+      .auth-panel p.lead {
+        margin: 0 0 24px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .form-stack label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+        color: #334155;
+      }
+      .form-stack input,
+      .form-stack textarea,
+      .form-stack select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 8px;
+        font-size: 1rem;
+        margin-bottom: 14px;
+      }
+      .form-stack textarea {
+        min-height: 88px;
+        resize: vertical;
+      }
+      .btn {
+        width: 100%;
+        padding: 12px 16px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        background: linear-gradient(135deg, #2563eb, #0ea5e9);
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+      }
+      .btn:hover {
+        background: linear-gradient(135deg, #1d4ed8, #0284c7);
+      }
+      .btn.secondary {
+        background: #475569;
+      }
+      .btn.secondary:hover {
+        background: #334155;
+      }
+      .auth-switch {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+      .app-grid {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+      @media (max-width: 840px) {
+        .app-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: rgba(248, 250, 252, 0.7);
+        border-radius: var(--radius);
+        box-shadow: 0 22px 50px rgba(15, 23, 42, 0.2);
+        border: 1px solid rgba(191, 219, 254, 0.5);
+        backdrop-filter: blur(16px) saturate(130%);
+        padding: 20px;
+        margin-bottom: 18px;
+      }
+      .card h2 {
+        margin: 0 0 14px;
+        font-size: 1.1rem;
+      }
+      .section-subtitle {
+        margin: -6px 0 14px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .stat-card {
+        border: 1px solid rgba(186, 230, 253, 0.8);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: linear-gradient(180deg, rgba(240, 249, 255, 0.9), rgba(224, 242, 254, 0.68));
+      }
+      .stat-label {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .stat-value {
+        font-size: 1.4rem;
+        font-weight: 800;
+        line-height: 1;
+        color: #0f172a;
+      }
+      .progress-wrap {
+        margin-top: 12px;
+      }
+      .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .progress-bar {
+        height: 10px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #22c55e, #16a34a);
+        transition: width 0.25s ease;
+      }
+      .task {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.78), rgba(237, 246, 255, 0.62));
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .task:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.14);
+      }
+      .task h3 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+      }
+      .task-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .task-date {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .task-reminder {
+        margin: 8px 0 10px;
+        display: inline-block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #0f766e;
+        background: #ccfbf1;
+        padding: 4px 10px;
+        border-radius: 999px;
+      }
+      .task-deadline {
+        margin: 8px 0 10px;
+        display: inline-block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #1d4ed8;
+        background: #dbeafe;
+        padding: 4px 10px;
+        border-radius: 999px;
+      }
+      .task p {
+        margin: 0 0 10px;
+        color: #475569;
+        font-size: 0.95rem;
+      }
+      .status {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .status.new {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      .status.in_progress {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .status.done {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .task-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      .task-actions button {
+        width: auto;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        color: #fff;
+      }
+      .task-actions .secondary {
+        background: #64748b;
+      }
+      .task-actions .danger {
+        background: var(--danger);
+      }
+      .task-records {
+        margin-top: 14px;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+      .task-records > summary {
+        cursor: pointer;
+        font-weight: 700;
+        color: #334155;
+        list-style: none;
+      }
+      .task-records > summary::-webkit-details-marker {
+        display: none;
+      }
+      .task-records > summary::before {
+        content: "▸ ";
+        display: inline-block;
+        transition: transform 0.15s ease;
+      }
+      .task-records[open] > summary::before {
+        transform: rotate(90deg);
+      }
+      .notes-list {
+        margin: 12px 0;
+        max-height: 220px;
+        overflow-y: auto;
+      }
+      .note-item {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+      }
+      .note-meta {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .note-body {
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #334155;
+      }
+      .note-remove {
+        margin-top: 8px;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        border: none;
+        border-radius: 6px;
+        background: #e2e8f0;
+        color: #334155;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .note-remove:hover {
+        background: #fecaca;
+        color: #991b1b;
+      }
+      .note-empty {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 8px 0;
+      }
+      .note-form textarea {
+        width: 100%;
+        min-height: 72px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+        resize: vertical;
+      }
+      .note-form .btn {
+        width: auto;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+      }
+      .filters-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .filters-grid .full {
+        grid-column: 1 / -1;
+      }
+      .pagination {
+        margin-top: 12px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .reminder-list {
+        display: grid;
+        gap: 8px;
+      }
+      .reminder-item {
+        border: 1px solid rgba(186, 230, 253, 0.8);
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: linear-gradient(180deg, rgba(240, 249, 255, 0.9), rgba(224, 242, 254, 0.7));
+      }
+      .reminder-item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .reminder-meta {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .due-now {
+        color: #b91c1c;
+        font-weight: 700;
+      }
+      .err {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .empty-state {
+        border: 1px dashed rgba(125, 211, 252, 0.8);
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+        color: var(--muted);
+        background: rgba(240, 249, 255, 0.72);
+      }
+      @keyframes waterPulse {
+        0% {
+          transform: translate3d(-2%, -1%, 0) scale(1);
+        }
+        100% {
+          transform: translate3d(2.5%, 1.8%, 0) scale(1.08);
+        }
+      }
+      @keyframes waterRipples {
+        0% {
+          transform: rotate(0deg) scale(1);
+        }
+        50% {
+          transform: rotate(180deg) scale(1.04);
+        }
+        100% {
+          transform: rotate(360deg) scale(1);
+        }
+      }
+      @keyframes floatOrb {
+        0% {
+          transform: translate3d(var(--tx, 0), var(--ty, 0), 0) translateY(0) scale(1);
+        }
+        50% {
+          transform: translate3d(var(--tx, 0), var(--ty, 0), 0) translateY(-16px) scale(1.04);
+        }
+        100% {
+          transform: translate3d(var(--tx, 0), var(--ty, 0), 0) translateY(0) scale(1);
+        }
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="water-bg" aria-hidden="true">
+      <div class="water-orb orb-1"></div>
+      <div class="water-orb orb-2"></div>
+      <div class="water-orb orb-3"></div>
+    </div>
+    <header class="topbar">
+      <div class="brand">Менеджер завдань</div>
+      <div class="topbar-actions" id="topbarGuest">
+        <a href="/api-docs" target="_blank" rel="noopener">Документація API</a>
+      </div>
+      <div class="topbar-actions hidden" id="topbarUser">
+        <span id="userLabel"></span>
+        <button type="button" class="btn-ghost" id="logoutBtn">Вийти</button>
+        <a href="/api-docs" target="_blank" rel="noopener">API</a>
+      </div>
+    </header>
+
+    <div class="shell">
+      <section id="view-login" class="view" aria-label="Вхід">
+        <div class="auth-panel">
+          <h1>Вхід</h1>
+          <p class="lead">Увійди, щоб керувати своїми завданнями.</p>
+          <form id="loginForm" class="form-stack">
+            <label>Електронна пошта</label>
+            <input name="email" type="email" required autocomplete="email" />
+            <label>Пароль</label>
+            <input name="password" type="password" required autocomplete="current-password" />
+            <button type="submit" class="btn">Увійти</button>
+          </form>
+          <div class="auth-switch">
+            Немає акаунта?
+            <a href="#" id="goRegister">Зареєструватися</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-register" class="view" aria-label="Реєстрація">
+        <div class="auth-panel">
+          <h1>Реєстрація</h1>
+          <p class="lead">Створи обліковий запис — пароль від 6 символів.</p>
+          <form id="registerForm" class="form-stack">
+            <label>Ім’я</label>
+            <input name="name" required autocomplete="name" />
+            <label>Електронна пошта</label>
+            <input name="email" type="email" required autocomplete="email" />
+            <label>Пароль</label>
+            <input name="password" type="password" required minlength="6" autocomplete="new-password" />
+            <button type="submit" class="btn">Створити акаунт</button>
+          </form>
+          <div class="auth-switch">
+            Вже є акаунт?
+            <a href="#" id="goLogin">Увійти</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-app" class="view" aria-label="Завдання">
+        <div class="app-grid">
+          <div>
+            <div class="card">
+              <h2>Нове завдання</h2>
+              <form id="taskForm" class="form-stack">
+                <label for="title">Назва</label>
+                <input id="title" name="title" required />
+                <label for="status">Статус</label>
+                <select id="status" name="status">
+                  <option value="new">Нове</option>
+                  <option value="in_progress">В роботі</option>
+                  <option value="done">Виконано</option>
+                </select>
+                <label for="repeatType">Повтор</label>
+                <select id="repeatType" name="repeat_type">
+                  <option value="none">Без повтору</option>
+                  <option value="daily">Щодня</option>
+                </select>
+                <label for="reminderTime">Час нагадування</label>
+                <input id="reminderTime" name="reminder_time" type="time" />
+                <label for="deadlineAt">Дедлайн</label>
+                <input id="deadlineAt" name="due_at" type="datetime-local" />
+                <label for="description">Опис</label>
+                <textarea id="description" name="description"></textarea>
+                <button type="submit" class="btn">Додати</button>
+              </form>
+            </div>
+            <div class="card">
+              <h2>Фільтри</h2>
+              <form id="filtersForm" class="form-stack filters-grid">
+                <div>
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="">Усі</option>
+                    <option value="new">Нове</option>
+                    <option value="in_progress">В роботі</option>
+                    <option value="done">Виконано</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Сторінка</label>
+                  <input name="page" type="number" min="1" value="1" />
+                </div>
+                <div class="full">
+                  <label>На сторінці</label>
+                  <input name="limit" type="number" min="1" max="50" value="10" />
+                </div>
+                <div class="full">
+                  <label>Пошук</label>
+                  <input name="search" placeholder="Назва або опис" />
+                </div>
+                <div class="full">
+                  <button type="submit" class="btn secondary">Застосувати</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <h2>Нагадування на сьогодні</h2>
+              <p class="section-subtitle">Щоденні задачі, які мають нагадувати про себе</p>
+              <div id="todayReminders" class="reminder-list"></div>
+            </div>
+            <div class="card">
+              <h2>Статистика</h2>
+              <p class="section-subtitle">Загальна картина по всіх твоїх задачах</p>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-label">Всього</div>
+                  <div class="stat-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Нові</div>
+                  <div class="stat-value" id="statNew">0</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">В роботі</div>
+                  <div class="stat-value" id="statProgress">0</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Виконані</div>
+                  <div class="stat-value" id="statDone">0</div>
+                </div>
+              </div>
+              <div class="progress-wrap">
+                <div class="progress-label">
+                  <span>Виконання</span>
+                  <strong id="progressLabel">0%</strong>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progressFill"></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h2>Мої завдання</h2>
+              <p class="section-subtitle">Список із фільтрами, статусами та записами</p>
+              <div id="tasks"></div>
+              <div class="pagination" id="pagination"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const STATUS_UK = { new: "Нове", in_progress: "В роботі", done: "Виконано" };
+      const viewLogin = document.getElementById("view-login");
+      const viewRegister = document.getElementById("view-register");
+      const viewApp = document.getElementById("view-app");
+      const topbarGuest = document.getElementById("topbarGuest");
+      const topbarUser = document.getElementById("topbarUser");
+      const userLabel = document.getElementById("userLabel");
+      const tasksRoot = document.getElementById("tasks");
+      const taskForm = document.getElementById("taskForm");
+      const repeatTypeInput = document.getElementById("repeatType");
+      const reminderTimeInput = document.getElementById("reminderTime");
+      const registerForm = document.getElementById("registerForm");
+      const loginForm = document.getElementById("loginForm");
+      const filtersForm = document.getElementById("filtersForm");
+      const pagination = document.getElementById("pagination");
+      const todayRemindersEl = document.getElementById("todayReminders");
+      const statTotalEl = document.getElementById("statTotal");
+      const statNewEl = document.getElementById("statNew");
+      const statProgressEl = document.getElementById("statProgress");
+      const statDoneEl = document.getElementById("statDone");
+      const progressLabelEl = document.getElementById("progressLabel");
+      const progressFillEl = document.getElementById("progressFill");
+      const goRegister = document.getElementById("goRegister");
+      const goLogin = document.getElementById("goLogin");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const waterOrbs = Array.from(document.querySelectorAll(".water-orb"));
+
+      let authToken = localStorage.getItem("token") || "";
+      let currentUser = null;
+      try {
+        currentUser = JSON.parse(localStorage.getItem("user") || "null");
+      } catch {
+        currentUser = null;
+      }
+
+      const esc = (v) =>
+        String(v)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+
+      function showView(name) {
+        viewLogin.classList.toggle("is-active", name === "login");
+        viewRegister.classList.toggle("is-active", name === "register");
+        viewApp.classList.toggle("is-active", name === "app");
+      }
+
+      function updateTopbar() {
+        const loggedIn = Boolean(authToken);
+        topbarGuest.classList.toggle("hidden", loggedIn);
+        topbarUser.classList.toggle("hidden", !loggedIn);
+        if (loggedIn && currentUser) {
+          userLabel.textContent = `${currentUser.name} · ${currentUser.email}`;
+        } else {
+          userLabel.textContent = "";
+        }
+      }
+
+      async function fetchJson(url, options) {
+        let response;
+        try {
+          response = await fetch(url, {
+            ...(options || {}),
+            headers: {
+              ...(options && options.headers ? options.headers : {}),
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+            }
+          });
+        } catch {
+          throw new Error("Немає з'єднання з сервером");
+        }
+        if (!response.ok && response.status !== 204) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.message || `Помилка ${response.status}`);
+        }
+        return response.status === 204 ? null : response.json();
+      }
+
+      function setAuth(token, user) {
+        authToken = token || "";
+        currentUser = user || null;
+        if (authToken) {
+          localStorage.setItem("token", authToken);
+          if (user) localStorage.setItem("user", JSON.stringify(user));
+        } else {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+        updateTopbar();
+      }
+
+      function statusLabel(code) {
+        return STATUS_UK[code] || code;
+      }
+
+      function initWaterMotion() {
+        if (waterOrbs.length === 0) return;
+        window.addEventListener("mousemove", (event) => {
+          const xRatio = event.clientX / window.innerWidth - 0.5;
+          const yRatio = event.clientY / window.innerHeight - 0.5;
+          waterOrbs.forEach((orb, index) => {
+            const factor = (index + 1) * 8;
+            orb.style.setProperty("--tx", `${-xRatio * factor}px`);
+            orb.style.setProperty("--ty", `${-yRatio * factor}px`);
+          });
+        });
+      }
+
+      function updateReminderInputState() {
+        const isDaily = repeatTypeInput.value === "daily";
+        reminderTimeInput.required = isDaily;
+        if (!isDaily) {
+          reminderTimeInput.value = "";
+        }
+      }
+
+      function setStats(total, newCount, progressCount, doneCount) {
+        statTotalEl.textContent = String(total);
+        statNewEl.textContent = String(newCount);
+        statProgressEl.textContent = String(progressCount);
+        statDoneEl.textContent = String(doneCount);
+
+        const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+        progressLabelEl.textContent = `${percent}%`;
+        progressFillEl.style.width = `${percent}%`;
+      }
+
+      async function loadStats() {
+        if (!authToken) {
+          setStats(0, 0, 0, 0);
+          return;
+        }
+        try {
+          const [allData, newData, progressData, doneData] = await Promise.all([
+            fetchJson("/tasks?page=1&limit=1"),
+            fetchJson("/tasks?page=1&limit=1&status=new"),
+            fetchJson("/tasks?page=1&limit=1&status=in_progress"),
+            fetchJson("/tasks?page=1&limit=1&status=done")
+          ]);
+          const total = allData?.pagination?.total || 0;
+          const newCount = newData?.pagination?.total || 0;
+          const progressCount = progressData?.pagination?.total || 0;
+          const doneCount = doneData?.pagination?.total || 0;
+          setStats(total, newCount, progressCount, doneCount);
+        } catch {
+          setStats(0, 0, 0, 0);
+        }
+      }
+
+      async function loadTodayReminders() {
+        if (!authToken) {
+          todayRemindersEl.innerHTML = "";
+          return;
+        }
+        try {
+          const reminders = await fetchJson("/tasks/reminders/today");
+          if (!Array.isArray(reminders) || reminders.length === 0) {
+            todayRemindersEl.innerHTML = '<div class="empty-state">Немає щоденних нагадувань.</div>';
+            return;
+          }
+          todayRemindersEl.innerHTML = reminders
+            .map(
+              (item) => `
+            <div class="reminder-item">
+              <strong>${esc(item.title)}</strong>
+              <div class="reminder-meta">
+                ${item.reminder_time ? `Час: ${esc(item.reminder_time)} · ` : ""}
+                Статус: ${esc(statusLabel(item.status))}
+              </div>
+              ${item.is_due_now ? '<div class="due-now">Пора робити зараз</div>' : ""}
+            </div>`
+            )
+            .join("");
+        } catch (error) {
+          todayRemindersEl.innerHTML = `<p class="err">${esc(error.message)}</p>`;
+        }
+      }
+
+      function renderTasks(tasks) {
+        tasksRoot.innerHTML =
+          tasks
+            .map(
+              (task) => `
+          <div class="task">
+            <div class="task-head">
+              <h3>${esc(task.title)}</h3>
+              <span class="status ${esc(task.status)}">${esc(statusLabel(task.status))}</span>
+            </div>
+            <div class="task-date">Створено: ${esc(new Date(task.created_at).toLocaleString("uk-UA"))}</div>
+            ${
+              task.repeat_type === "daily"
+                ? `<div class="task-reminder">Щодня${task.reminder_time ? ` о ${esc(task.reminder_time)}` : ""}</div>`
+                : ""
+            }
+            ${
+              task.due_at
+                ? `<div class="task-deadline">Дедлайн: ${esc(new Date(task.due_at).toLocaleString("uk-UA"))}</div>`
+                : ""
+            }
+            <p>${esc(task.description || "")}</p>
+            <div class="task-actions">
+              <button class="secondary" type="button" data-action="progress" data-id="${task.id}">В роботі</button>
+              <button class="secondary" type="button" data-action="done" data-id="${task.id}">Виконано</button>
+              <button class="danger" type="button" data-action="delete" data-id="${task.id}">Видалити</button>
+            </div>
+            <details class="task-records" data-task-id="${task.id}">
+              <summary>Мої записи до завдання</summary>
+              <div class="notes-list" data-notes-for="${task.id}"></div>
+              <form class="note-form" data-task-id="${task.id}">
+                <textarea name="body" required placeholder="Текст запису…"></textarea>
+                <button type="submit" class="btn">Додати запис</button>
+              </form>
+            </details>
+        </div>`
+            )
+            .join("") || '<div class="empty-state">Поки немає задач. Додай першу у формі ліворуч.</div>';
+      }
+
+      async function loadNotesForTask(taskId, listEl) {
+        try {
+          const notes = await fetchJson(`/tasks/${taskId}/notes`);
+          listEl.innerHTML =
+            notes.length > 0
+              ? notes
+                  .map(
+                    (n) => `
+            <div class="note-item">
+              <div class="note-meta">${esc(new Date(n.created_at).toLocaleString("uk-UA"))}</div>
+              <div class="note-body">${esc(n.body)}</div>
+              <button type="button" class="note-remove" data-action="delete-note" data-task-id="${taskId}" data-note-id="${n.id}">Видалити запис</button>
+            </div>`
+                  )
+                  .join("")
+              : '<p class="note-empty">Ще немає записів.</p>';
+        } catch (e) {
+          listEl.innerHTML = `<p class="err">${esc(e.message)}</p>`;
+        }
+      }
+
+      async function loadTasks() {
+        if (!authToken) return;
+        const formData = new FormData(filtersForm);
+        const query = new URLSearchParams({
+          status: formData.get("status") || "",
+          search: formData.get("search") || "",
+          page: formData.get("page") || "1",
+          limit: formData.get("limit") || "10"
+        });
+        try {
+          const data = await fetchJson(`/tasks?${query.toString()}`);
+          renderTasks(data.items || []);
+          await loadStats();
+          await loadTodayReminders();
+          if (data.pagination) {
+            pagination.textContent = `Сторінка ${data.pagination.page} з ${Math.max(1, data.pagination.pages)} · Всього ${data.pagination.total}`;
+          }
+        } catch (error) {
+          tasksRoot.innerHTML = `<p class="err">${esc(error.message)}</p>`;
+          pagination.textContent = "";
+          todayRemindersEl.innerHTML = "";
+          setStats(0, 0, 0, 0);
+        }
+      }
+
+      function openAppAfterAuth(user, token) {
+        setAuth(token, user);
+        showView("app");
+        loadTasks();
+      }
+
+      goRegister.addEventListener("click", (e) => {
+        e.preventDefault();
+        showView("register");
+      });
+      goLogin.addEventListener("click", (e) => {
+        e.preventDefault();
+        showView("login");
+      });
+      logoutBtn.addEventListener("click", () => {
+        setAuth("", null);
+        showView("login");
+        tasksRoot.innerHTML = "";
+        pagination.textContent = "";
+        todayRemindersEl.innerHTML = "";
+        setStats(0, 0, 0, 0);
+      });
+
+      registerForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const formData = new FormData(registerForm);
+          const data = await fetchJson("/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: formData.get("name"),
+              email: formData.get("email"),
+              password: formData.get("password")
+            })
+          });
+          openAppAfterAuth(data.user, data.token);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const formData = new FormData(loginForm);
+          const data = await fetchJson("/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: formData.get("email"),
+              password: formData.get("password")
+            })
+          });
+          openAppAfterAuth(data.user, data.token);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      taskForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!authToken) {
+          showView("login");
+          return;
+        }
+        try {
+          const formData = new FormData(taskForm);
+          const reminderTime = String(formData.get("reminder_time") || "").trim();
+          const dueAt = String(formData.get("due_at") || "").trim();
+          await fetchJson("/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.get("title"),
+              description: formData.get("description"),
+              status: formData.get("status"),
+              repeat_type: formData.get("repeat_type"),
+              ...(reminderTime ? { reminder_time: reminderTime } : {}),
+              ...(dueAt ? { due_at: dueAt } : {})
+            })
+          });
+          taskForm.reset();
+          updateReminderInputState();
+          await loadTasks();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      repeatTypeInput.addEventListener("change", updateReminderInputState);
+
+      tasksRoot.addEventListener("toggle", async (event) => {
+        const details = event.target;
+        if (!details.classList || !details.classList.contains("task-records")) return;
+        if (!details.open) return;
+        const taskId = details.dataset.taskId;
+        const listEl = details.querySelector(".notes-list");
+        if (taskId && listEl) await loadNotesForTask(taskId, listEl);
+      });
+
+      tasksRoot.addEventListener("submit", async (event) => {
+        const form = event.target.closest(".note-form");
+        if (!form || !tasksRoot.contains(form)) return;
+        event.preventDefault();
+        const taskId = form.dataset.taskId;
+        const text = String(new FormData(form).get("body") || "").trim();
+        if (!text) return;
+        const listEl = form.closest("details").querySelector(".notes-list");
+        try {
+          await fetchJson(`/tasks/${taskId}/notes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body: text })
+          });
+          form.reset();
+          await loadNotesForTask(taskId, listEl);
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      tasksRoot.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const action = button.dataset.action;
+
+        if (action === "delete-note") {
+          const taskId = button.dataset.taskId;
+          const noteId = button.dataset.noteId;
+          const details = button.closest("details.task-records");
+          const listEl = details && details.querySelector(".notes-list");
+          try {
+            await fetchJson(`/tasks/${taskId}/notes/${noteId}`, { method: "DELETE" });
+            if (listEl) await loadNotesForTask(taskId, listEl);
+          } catch (e) {
+            alert(e.message);
+          }
+          return;
+        }
+
+        const id = Number(button.dataset.id);
+        try {
+          if (action === "delete") await fetchJson(`/tasks/${id}`, { method: "DELETE" });
+          if (action === "progress")
+            await fetchJson(`/tasks/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "in_progress" })
+            });
+          if (action === "done")
+            await fetchJson(`/tasks/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "done" })
+            });
+          await loadTasks();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      filtersForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await loadTasks();
+      });
+
+      initWaterMotion();
+      updateTopbar();
+      updateReminderInputState();
+      if (authToken && currentUser) {
+        showView("app");
+        loadTasks();
+      } else if (authToken) {
+        showView("app");
+        loadTasks();
+      } else {
+        showView("login");
+      }
+    </script>
+  </body>
+</html>

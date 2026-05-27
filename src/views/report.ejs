@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Звіт з продуктивності - Менеджер завдань</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: #090d16;
+      color: #f8fafc;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      font-size: 2.25rem;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      color: #94a3b8;
+      margin-bottom: 32px;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .metric-card {
+      background: rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .metric-val {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-top: 8px;
+    }
+    .total { color: #f8fafc; }
+    .new { color: #60a5fa; }
+    .progress { color: #fbbf24; }
+    .done { color: #34d399; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    th {
+      font-weight: 600;
+      color: #94a3b8;
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+    tr:hover {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 99px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge.new { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .badge.in_progress { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .badge.done { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Звіт з продуктивності</h1>
+    <div class="subtitle">Серверний звіт, згенерований за допомогою EJS шаблонізатора для користувача <%= user.name %></div>
+
+    <div class="metrics-grid">
+      <div class="metric-card total">
+        <div>Всього завдань</div>
+        <div class="metric-val"><%= stats.total %></div>
+      </div>
+      <div class="metric-card new">
+        <div>Нові</div>
+        <div class="metric-val"><%= stats.new %></div>
+      </div>
+      <div class="metric-card progress">
+        <div>В роботі</div>
+        <div class="metric-val"><%= stats.progress %></div>
+      </div>
+      <div class="metric-card done">
+        <div>Виконані</div>
+        <div class="metric-val"><%= stats.done %></div>
+      </div>
+    </div>
+
+    <h2>Список ваших завдань</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Завдання</th>
+          <th>Опис</th>
+          <th>Статус</th>
+          <th>Дедлайн</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (tasks.length === 0) { %>
+          <tr>
+            <td colspan="4" style="text-align: center; color: #64748b;">У вас поки немає створених завдань</td>
+          </tr>
+        <% } else { %>
+          <% tasks.forEach(function(task) { %>
+            <tr>
+              <td><strong><%= task.title %></strong></td>
+              <td><%= task.description || '-' %></td>
+              <td>
+                <span class="badge <%= task.status %>">
+                  <%= task.status === 'new' ? 'Нове' : task.status === 'in_progress' ? 'В роботі' : 'Виконано' %>
+                </span>
+              </td>
+              <td><%= task.due_at ? new Date(task.due_at).toLocaleDateString('uk-UA') : '-' %></td>
+            </tr>
+          <% }); %>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
