@@ -1,6 +1,6 @@
 # Task Manager API
 
-Coursework-ready task manager backend using Express.js and MySQL.
+task manager backend using Express.js and MySQL.
 
 ## Features
 
